@@ -1,0 +1,119 @@
+#1.)A cloth manufacturing company is interested to know about the segment or attributes causes high sale. 
+#Approach - A decision tree can be built with target variable Sale (we will first convert it in categorical variable) & all other variable will be independent in the analysis.
+
+
+install.packages("C50") 
+install.packages("tree")
+install.packages("party")
+install.packages("binst")
+library(C50)
+library(tree)
+library(caret)
+library(party)
+library(gmodels)
+library(binst)
+Company <- Company_Data_2_
+View(Company)
+summary(Company)
+str(Company)
+names(Company)
+
+# Converting sales variable into categorical variable
+
+#High = ifelse(company$Sales<10, "No", "Yes")
+#CD = data.frame(company, High)
+attach(CD)
+?cut
+?create_bins
+#sales <- create_bins(company$Sales, breaks, method = "cuts")
+
+#Creating Bins (to convert sales into categorical variable)
+
+sales_bin <- cut(Company$Sales,3, labels =c("Low","Average","High"))
+Company$salesStatus<- sales_bin
+View(Company)
+
+# Creating training and test datasets
+?createDataPartition
+Company_train_test <- createDataPartition(Company$salesStatus, p=0.7, list=FALSE, times=1)
+length(Company_train_test)
+Company_train <- Company[Company_train_test,]
+Company_test <- Company[-Company_train_test,]
+View(Company_test)
+min(Company$Sales)
+max(Company$Sales)
+str(Company)
+attach(Company)
+
+# Decisison Tree
+op_tree = tree(salesStatus ~ CompPrice + Income + Advertising + Population + Price + ShelveLoc
+               + Age + Education + Urban + US, data = Company_train)
+summary(op_tree)
+plot(op_tree)
+text(op_tree,pretty = 0)
+
+# Predicting the test data using the model
+pred_tree <- as.data.frame(predict(op_tree,newdata=Company_test))
+pred_tree["final"] <- NULL
+pred_test_df <- predict(op_tree,newdata=Company_test)
+pred_tree$final <- colnames(pred_test_df)[apply(pred_test_df,1,which.max)]
+
+mean(pred_tree$final==Company_test$salesStatus) # Accuracy = 68.067%
+CrossTable(Company_test$salesStatus,pred_tree$final)
+
+#confusionMatrix(Company_test$salesStatus,pred_tree$final)
+class(Company_test$Sales)
+class(pred_tree$final)
+pred<- predict(op_tree,newdata=Company_test)
+x<- cbind(Company_test$High,pred)
+View(x)
+
+#2.) Use decision trees to prepare a model on fraud data 
+#treating those who have taxable_income <= 30000 as "Risky" and others are "Good"
+
+
+attach(Fraud_check_1_)
+View(Fraud_check_1_)
+Fraud_check_1_ <- fraud
+fraud <- Fraud_check_1_
+summary(fraud)
+status = ifelse(fraud$Taxable.Income<=30000, "Risky", "Good")
+fraud = data.frame(fraud, status)
+attach(fraud)
+View(fraud)
+str(fraud)
+names(fraud)
+
+# Creating training and test datasets
+?createDataPartition
+fraud_train_test <- createDataPartition(fraud$status, p=0.7, list=FALSE, times=1)
+length(fraud_train_test)
+fraud_train <- fraud[fraud_train_test,]
+fraud_test <- fraud[-fraud_train_test,]
+View(fraud_test)
+names(fraud)
+
+# Decisison Tree
+op_tree = ctree(status ~Undergrad+Marital.Status+City.Population+Work.Experience+Urban, data = fraud_train)
+summary(op_tree)
+op_tree<- C5.0(fraud_train[,-c(3,7)],fraud_train$status)
+windows()
+names(fraud_train)
+summary(op_tree)
+plot(op_tree)
+#text(op_tree,pretty = 0)
+str(fraud)
+
+# Predicting the test data using the model
+pred_tree <- as.data.frame(predict(op_tree,newdata=fraud_test))
+pred_tree["final"] <- NULL
+pred <- predict(op_tree,newdata=fraud_test)
+View(fraud_test)
+length(pred)
+
+# Accuracy
+mean(pred==fraud_test$status) # Accuracy = 79.32%
+CrossTable(pred,fraud_test$status)
+confusionMatrix(pred,fraud_test$status)
+
+
